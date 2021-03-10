@@ -1,5 +1,7 @@
+
+//use crate::scanner;
+//use crate::compiler;
 use crate::chunk;
-use crate::compiler;
 
 pub struct VM<'a> {
     curr_ch: Option<&'a chunk::Chunk>,
@@ -20,7 +22,7 @@ impl<'a> VM<'a> {
     }
 
     pub fn interpret(&mut self, source: &str) -> InterpretResult {
-        compile(source);
+        //compile(source);
         return InterpretResult::InterpretOk
         //self.curr_ch = Some(ch);
         //self.run()
