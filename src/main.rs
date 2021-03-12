@@ -1,22 +1,23 @@
 mod chunk;
 mod vm;
 mod scanner;
+mod compilerf;
 
 use std::{env, process, io, fs};
 use std::error::Error;
 
 fn main() {
 
-    let test_str = "asdf <> != <= => = \n==\0";
-    //let test_str = "test1 123\0";
-    let mut scanner = scanner::Scanner::new(test_str);
+    // let test_str = "if asdf <> != <= => = \n==\0";
+    // //let test_str = "test1 123\0";
+    // let mut scanner = scanner::Scanner::new(test_str);
 
-    let mut i = 0;
-    for item in scanner {
-        print!("{} ", i);
-        println!("type: {:?} start: {} len: {} line: {}", item.ttype, item.start, item.length, item.line);
-        i += 1;
-    }
+    // let mut i = 0;
+    // for item in scanner {
+    //     print!("{} ", i);
+    //     println!("type: {:?} start: {} len: {} line: {}", item.ttype, item.start, item.length, item.line);
+    //     i += 1;
+    // }
     //test bytecode
     // let mut ch = chunk::Chunk::new();
     // let mut virtual_machine = vm::VM::new();

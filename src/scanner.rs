@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use std::fmt;
+
+
 
 pub struct Token {
     pub ttype: TokenType,
@@ -26,7 +30,8 @@ impl Token {
     // }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
+#[allow(non_camel_case_types)]
 pub enum TokenType {
   // Single-character tokens
   TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
@@ -41,7 +46,7 @@ pub enum TokenType {
   TOKEN_LESS, TOKEN_LESS_EQUAL,
 
   // Literals
-  TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER,
+  TOKEN_IDENTIFIER(String), TOKEN_STRING(String), TOKEN_NUMBER(f32),
 
   // Keywords
   TOKEN_AND, TOKEN_CLASS, TOKEN_ELSE, TOKEN_FALSE,
@@ -51,22 +56,56 @@ pub enum TokenType {
 
   TOKEN_ERROR(String),
   TOKEN_EOF,
+  TOKEN_BOF,
 }
 
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Clone)]
 pub struct Scanner<'a > {
     pub start: usize,
     pub current: usize,
     pub line: usize,
     pub source_byte: &'a [u8],
+    pub keywords: HashMap<String, TokenType>,
 }
 
 impl<'a > Scanner<'a > {
     pub fn new(source: &'a str) -> Scanner<'a > {
+
+        fn create_keyword_set() -> HashMap<String, TokenType> {
+            let mut keyword_set: HashMap<String, TokenType> = HashMap::new();
+            
+            keyword_set.insert(String::from("and"), TokenType::TOKEN_AND);
+            keyword_set.insert(String::from("class"), TokenType::TOKEN_CLASS);
+            keyword_set.insert(String::from("else"), TokenType::TOKEN_ELSE);
+            keyword_set.insert(String::from("if"), TokenType::TOKEN_IF);
+            keyword_set.insert(String::from("nil"), TokenType::TOKEN_NIL);
+            keyword_set.insert(String::from("or"), TokenType::TOKEN_OR);
+            keyword_set.insert(String::from("print"), TokenType::TOKEN_PRINT);
+            keyword_set.insert(String::from("return"), TokenType::TOKEN_RETURN);
+            keyword_set.insert(String::from("super"), TokenType::TOKEN_SUPER);
+            keyword_set.insert(String::from("var"), TokenType::TOKEN_VAR);
+            keyword_set.insert(String::from("while"), TokenType::TOKEN_WHILE);
+            keyword_set.insert(String::from("false"), TokenType::TOKEN_FALSE);
+            keyword_set.insert(String::from("for"), TokenType::TOKEN_FOR);
+            keyword_set.insert(String::from("fun"), TokenType::TOKEN_FUN);
+            keyword_set.insert(String::from("this"), TokenType::TOKEN_THIS);
+            keyword_set.insert(String::from("true"), TokenType::TOKEN_TRUE);
+
+            keyword_set
+        }
+
         Scanner {
             start: 0,
             current: 0,
             line: 1,
             source_byte: source.as_bytes(),
+            keywords: create_keyword_set(), 
         }
     }
 
@@ -75,7 +114,7 @@ impl<'a > Scanner<'a > {
         self.source_byte[self.current]
     }
 
-    fn make_token(&self, ttype: TokenType) -> Token {
+    pub fn make_token(&self, ttype: TokenType) -> Token {
         Token {
             ttype: ttype,
             start: self.start, 
@@ -84,12 +123,16 @@ impl<'a > Scanner<'a > {
         }
     }
 
+    // NEEDS FIXING 
     fn find_string(&mut self) -> Token {
         let mut counter: usize = 1;
+        let mut word = String::new();
 
         while self.source_byte[self.current + counter] != b'"' {
             match self.advance() {
-                b'\n' => { self.line += 1; },
+                b'\n' => { 
+                    word.push(self.source_byte[self.current] as char); 
+                    self.line += 1; },
                 b'\0' => { return self.make_token(TokenType::TOKEN_ERROR(String::from("Unterminated string"))) }
                 _ => { return self.make_token(TokenType::TOKEN_ERROR(String::from("Other error"))) }
             }
@@ -97,17 +140,23 @@ impl<'a > Scanner<'a > {
         }
 
         self.advance();
-        self.make_token(TokenType::TOKEN_STRING)
+        self.make_token(TokenType::TOKEN_STRING("not_implemented".to_string()))
     }
 
     fn find_number(&mut self) -> Token {
+
+        let mut number = String::new();
+
         let mut dot = false; 
         loop {
             match self.source_byte[self.current] {
-                b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => { self.advance(); },
+                b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => { 
+                    number.push(self.source_byte[self.current] as char); 
+                    self.advance(); },
                 b'.' => {
                     if dot == false {
                         dot = true;
+                        number.push('.'); 
                         self.advance();
                     } else {
                         break;
@@ -117,19 +166,30 @@ impl<'a > Scanner<'a > {
             }
         }
 
-        self.make_token(TokenType::TOKEN_NUMBER)
+        self.make_token(TokenType::TOKEN_NUMBER(number.parse::<f32>().unwrap()))
     }
     
     fn find_identifier(&mut self) -> Token {
+        let mut word = String::new();
+        self.current -= 1;
         loop {
             match self.source_byte[self.current] {
-                b'a'..=b'z' | b'A'..=b'Z' | b'_' => { self.advance(); },
-                b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => { self.advance(); },
+                b'a'..=b'z' | b'A'..=b'Z' | b'_' => { 
+                    word.push(self.source_byte[self.current] as char); 
+                    self.advance(); },
+                b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => { 
+                    word.push(self.source_byte[self.current] as char); 
+                    self.advance(); },
                 _ => break,
             }
         }
 
-        self.make_token(TokenType::TOKEN_IDENTIFIER)
+        match self.keywords.get(&word) {
+            Some(t) => self.make_token(t.clone()),
+            None => self.make_token(TokenType::TOKEN_IDENTIFIER(word)),
+        }
+
+
     }
 
     // fn reset(&mut self) {

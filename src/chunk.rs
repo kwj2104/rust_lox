@@ -14,7 +14,7 @@ pub enum OpCode {
 // --
 pub struct Chunk {
     arr: Vec<OpCode>,
-    arr_line: Vec<i32>,
+    arr_line: Vec<usize>,
     const_arr: Vec<f32>,
 }
 
@@ -27,7 +27,7 @@ impl Chunk {
         }
     }
 
-    pub fn write_chunk(&mut self, code: OpCode, line: i32){
+    pub fn write_chunk(&mut self, code: OpCode, line: usize){
         self.arr.push(code);
         self.arr_line.push(line);
     }
@@ -40,7 +40,7 @@ impl Chunk {
         &self.const_arr
     }
 
-    pub fn get_line(&self) -> &Vec<i32> {
+    pub fn get_line(&self) -> &Vec<usize> {
         &self.arr_line
     }
 
@@ -56,10 +56,10 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) -> usize {
     
     let cl_arr = chunk.get_inst().iter().zip(chunk.get_line().iter());
     
-    let mut last_line: i32 = -1;
+    let mut last_line: Option<usize> = None;
     for (i, (opc, line)) in cl_arr.enumerate() {
         let line_disp;
-        if i > 0 && (*line == last_line) {
+        if i > 0 && (*line == last_line.unwrap()) {
             line_disp = format!("   |");
         } else {
             line_disp = format!("{:04}", line);
@@ -76,7 +76,7 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) -> usize {
         
         println!("");
 
-        last_line = *line;
+        last_line = Some(*line);
     }
     
     chunk.get_inst().len()
