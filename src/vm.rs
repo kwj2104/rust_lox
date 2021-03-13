@@ -1,12 +1,12 @@
 
 //use crate::scanner;
-//use crate::compiler;
+use crate::compilerf;
 use crate::chunk;
 
-pub struct VM<'a> {
-    curr_ch: Option<&'a chunk::Chunk>,
+pub struct VM {
+    curr_ch: chunk::Chunk,
     ip: usize,
-    stack: Vec<f32>,
+    pub stack: Vec<f32>,
 }
 
 #[derive(Debug)]
@@ -16,16 +16,21 @@ pub enum InterpretResult {
     InterpretRuntimeError,
 }
 
-impl<'a> VM<'a> {
-    pub fn new() ->  VM<'a> {
-        VM {curr_ch: None, ip: 0, stack: Vec::new()}
+impl<'a> VM {
+    pub fn new() ->  VM {
+        VM {curr_ch: chunk::Chunk::new(), ip: 0, stack: Vec::new()}
     }
 
     pub fn interpret(&mut self, source: &str) -> InterpretResult {
-        //compile(source);
-        return InterpretResult::InterpretOk
+        //let mut test_chunk = chunk::Chunk::new();
+
+        compilerf::compile(source, &mut self.curr_ch);
+        //
         //self.curr_ch = Some(ch);
-        //self.run()
+        self.run();
+
+        chunk::disassemble_chunk(&self.curr_ch, "CHUNK_DEBUG_DISASSEMBLE"); // DEBUG
+        return InterpretResult::InterpretOk
     }
 
     fn run(&mut self) -> InterpretResult {
@@ -33,11 +38,11 @@ impl<'a> VM<'a> {
 
 
         loop {
-            match self.curr_ch.unwrap().get_inst()[self.ip] {
+            match self.curr_ch.get_inst()[self.ip] {
                 chunk::OpCode::OpReturn => return InterpretResult::InterpretOk,
                 chunk::OpCode::OpConstant(index) => {
                     //println!("Constant: {}", self.curr_ch.unwrap().get_const()[index]);
-                    self.stack.push(self.curr_ch.unwrap().get_const()[index]);
+                    self.stack.push(self.curr_ch.get_const()[index]);
                 },
                 chunk::OpCode::OpNegate => {
                     let top = -self.stack.pop().unwrap();

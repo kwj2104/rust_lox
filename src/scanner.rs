@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 
-
+#[derive(Clone)]
 pub struct Token {
     pub ttype: TokenType,
     pub line: usize,
@@ -146,7 +146,7 @@ impl<'a > Scanner<'a > {
     fn find_number(&mut self) -> Token {
 
         let mut number = String::new();
-
+        self.current -= 1;
         let mut dot = false; 
         loop {
             match self.source_byte[self.current] {
