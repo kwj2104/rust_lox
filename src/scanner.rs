@@ -10,26 +10,6 @@ pub struct Token {
     pub start: usize,
 }
 
-impl Token {
-    // fn new(type: TokenType) -> Token {
-    //     Token {
-    //         type: type,
-    //         start: scanner.start, 
-    //         length: scanner.current - scanner.start,
-    //         line: scanner.line,
-    //     }
-    // }
-
-    // fn new_err(scanner &Scanner) -> Token {
-    //     Token {
-    //         type: TokenType::TOKEN_ERROR,
-    //         start: 0,
-    //         length: 0,
-    //         line: scanner.line,
-    //     }
-    // }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum TokenType {
@@ -191,12 +171,6 @@ impl<'a > Scanner<'a > {
 
 
     }
-
-    // fn reset(&mut self) {
-    //     self.start = 0;
-    //     self.current = 0;
-    //     line = 1;
-    // }
 }
 
 impl<'a > Iterator for Scanner<'a > {

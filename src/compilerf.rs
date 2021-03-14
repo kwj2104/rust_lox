@@ -35,8 +35,6 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
 
-    // static HashMap 
-
     //PARSER CONSTRUCTOR
     fn new(scanner: scanner::Scanner<'a>, chunk: &'a mut chunk::Chunk) -> Parser<'a > {
         let mut parser = Parser {
@@ -47,7 +45,6 @@ impl<'a> Parser<'a> {
             had_error: false,
             panic_mode: false,
         };
-
 
         return parser
     }
@@ -94,9 +91,18 @@ impl<'a> Parser<'a> {
     fn number (&mut self) {
         match &self.previous.ttype {
             scanner::TokenType::TOKEN_NUMBER(n) => {
-                let constant = self.chunk.add_const(*n);
+                let constant = self.chunk.add_const(chunk::Value::Number(*n));
                 self.chunk.write_chunk(chunk::OpCode::OpConstant(constant), self.previous.line);
             }
+            _ => () // Some error handling needed
+        }
+    }
+
+    fn literal (&mut self) {
+        match &self.previous.ttype {
+            scanner::TokenType::TOKEN_TRUE => self.chunk.write_chunk(chunk::OpCode::OpTrue, self.previous.line),
+            scanner::TokenType::TOKEN_FALSE => self.chunk.write_chunk(chunk::OpCode::OpFalse, self.previous.line),
+            scanner::TokenType::TOKEN_NIL => self.chunk.write_chunk(chunk::OpCode::OpNil, self.previous.line),
             _ => () // Some error handling needed
         }
     }
@@ -112,6 +118,21 @@ impl<'a> Parser<'a> {
             scanner::TokenType::TOKEN_MINUS => self.chunk.write_chunk(chunk::OpCode::OpSubtract, self.previous.line),
             scanner::TokenType::TOKEN_STAR => self.chunk.write_chunk(chunk::OpCode::OpMultiply, self.previous.line),
             scanner::TokenType::TOKEN_SLASH => self.chunk.write_chunk(chunk::OpCode::OpDivide, self.previous.line),
+            scanner::TokenType::TOKEN_BANG_EQUAL => {
+                self.chunk.write_chunk(chunk::OpCode::OpEqual, self.previous.line);
+                self.chunk.write_chunk(chunk::OpCode::OpNot, self.previous.line);
+            }
+            scanner::TokenType::TOKEN_EQUAL_EQUAL => self.chunk.write_chunk(chunk::OpCode::OpEqual, self.previous.line),
+            scanner::TokenType::TOKEN_GREATER => self.chunk.write_chunk(chunk::OpCode::OpGreater, self.previous.line),
+            scanner::TokenType::TOKEN_GREATER_EQUAL => {
+                self.chunk.write_chunk(chunk::OpCode::OpLess, self.previous.line);
+                self.chunk.write_chunk(chunk::OpCode::OpNot, self.previous.line);
+            }
+            scanner::TokenType::TOKEN_LESS => self.chunk.write_chunk(chunk::OpCode::OpLess, self.previous.line),
+            scanner::TokenType::TOKEN_LESS_EQUAL => {
+                self.chunk.write_chunk(chunk::OpCode::OpGreater, self.previous.line);
+                self.chunk.write_chunk(chunk::OpCode::OpNot, self.previous.line);
+            }
             _ => () // some error handling needed
 
         }
@@ -125,6 +146,7 @@ impl<'a> Parser<'a> {
 
         match operator_type {
             scanner::TokenType::TOKEN_MINUS => self.chunk.write_chunk(chunk::OpCode::OpNegate, self.previous.line),
+            scanner::TokenType::TOKEN_BANG => self.chunk.write_chunk(chunk::OpCode::OpNot, self.previous.line),
             _ => (),
         }
     }
@@ -162,6 +184,14 @@ impl<'a> Parser<'a> {
             scanner::TokenType::TOKEN_STAR | scanner::TokenType::TOKEN_SLASH => (None, Some(Parser::binary), Precedence::PREC_FACTOR),
             scanner::TokenType::TOKEN_LEFT_PAREN => (Some(Parser::grouping), None, Precedence::PREC_NONE),
             scanner::TokenType::TOKEN_RIGHT_PAREN => (None, None, Precedence::PREC_NONE),
+            scanner::TokenType::TOKEN_NIL => (Some(Parser::literal), None, Precedence::PREC_NONE),
+            scanner::TokenType::TOKEN_TRUE => (Some(Parser::literal), None, Precedence::PREC_NONE),
+            scanner::TokenType::TOKEN_FALSE => (Some(Parser::literal), None, Precedence::PREC_NONE),
+            scanner::TokenType::TOKEN_BANG => (Some(Parser::unary), None, Precedence::PREC_NONE),
+            scanner::TokenType::TOKEN_BANG_EQUAL => (None, Some(Parser::binary), Precedence::PREC_EQUALITY),
+            scanner::TokenType::TOKEN_EQUAL_EQUAL => (None, Some(Parser::binary), Precedence::PREC_EQUALITY),
+            scanner::TokenType::TOKEN_GREATER | scanner::TokenType::TOKEN_GREATER_EQUAL | 
+            scanner::TokenType::TOKEN_LESS | scanner::TokenType::TOKEN_LESS_EQUAL  => (None, Some(Parser::binary), Precedence::PREC_COMPARISON),
             _ => (None, None, 0),
             //_ => (),
         }

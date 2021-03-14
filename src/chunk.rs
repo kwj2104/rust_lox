@@ -9,13 +9,27 @@ pub enum OpCode {
     OpSubtract,
     OpDivide,
     OpMultiply,
+    OpNil,
+    OpTrue,
+    OpFalse,
+    OpNot,
+    OpEqual,
+    OpGreater,
+    OpLess,
 }
 
 // --
 pub struct Chunk {
     arr: Vec<OpCode>,
     arr_line: Vec<usize>,
-    const_arr: Vec<f32>,
+    const_arr: Vec<Value>,
+}
+
+#[derive(Clone)]
+pub enum Value {
+    Number(f32),
+    Boolean(u8),
+    Nil,
 }
 
 impl Chunk {
@@ -36,7 +50,7 @@ impl Chunk {
         &self.arr
     }
 
-    pub fn get_const(&self) -> &Vec<f32> {
+    pub fn get_const(&self) -> &Vec<Value> {
         &self.const_arr
     }
 
@@ -44,7 +58,7 @@ impl Chunk {
         &self.arr_line
     }
 
-    pub fn add_const(&mut self, value: f32) -> usize {
+    pub fn add_const(&mut self, value: Value) -> usize {
         self.const_arr.push(value);
         self.const_arr.len() - 1
     }
@@ -70,7 +84,14 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) -> usize {
         
         //additional prints
         match opc {
-            OpCode::OpConstant(index) => print!(" {}", chunk.get_const()[*index]),
+            OpCode::OpConstant(index) => {
+                match chunk.get_const()[*index] {
+                        Value::Number(n) => print!(" {}", n),
+                        Value::Boolean(n) => print!(" {}", n),
+                        Value::Nil => print!(" Nil"),
+                        _ => (), // potentially more formats to be added
+                    }
+            }
             _ => (),
         }
         

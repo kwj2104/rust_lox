@@ -6,7 +6,7 @@ use crate::chunk;
 pub struct VM {
     curr_ch: chunk::Chunk,
     ip: usize,
-    pub stack: Vec<f32>,
+    pub stack: Vec<chunk::Value>,
 }
 
 #[derive(Debug)]
@@ -25,48 +25,124 @@ impl<'a> VM {
         //let mut test_chunk = chunk::Chunk::new();
 
         compilerf::compile(source, &mut self.curr_ch);
-        //
-        //self.curr_ch = Some(ch);
-        self.run();
 
         chunk::disassemble_chunk(&self.curr_ch, "CHUNK_DEBUG_DISASSEMBLE"); // DEBUG
-        return InterpretResult::InterpretOk
+        self.run()
+
+        
+        //return InterpretResult::InterpretOk
     }
 
     fn run(&mut self) -> InterpretResult {
         // need to handle this off by 1 error
 
-
         loop {
             match self.curr_ch.get_inst()[self.ip] {
                 chunk::OpCode::OpReturn => return InterpretResult::InterpretOk,
+                chunk::OpCode::OpEqual => {
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m))  if (n == m) => self.stack.push(chunk::Value::Boolean(1)), 
+                        (chunk::Value::Boolean(n), chunk::Value::Boolean(m)) if (n == m) => self.stack.push(chunk::Value::Boolean(1)),
+                        (chunk::Value::Nil, chunk::Value::Nil) => self.stack.push(chunk::Value::Boolean(1)),
+                        (chunk::Value::Number(n), chunk::Value::Number(m))  if (n != m) => self.stack.push(chunk::Value::Boolean(0)), 
+                        (chunk::Value::Boolean(n), chunk::Value::Boolean(m)) if (n != m) => self.stack.push(chunk::Value::Boolean(0)),
+                        (chunk::Value::Nil, chunk::Value::Number(n)) => self.stack.push(chunk::Value::Boolean(0)),
+                        (chunk::Value::Nil, chunk::Value::Boolean(n)) => self.stack.push(chunk::Value::Boolean(0)),
+                        (chunk::Value::Number(n), chunk::Value::Nil) => self.stack.push(chunk::Value::Boolean(0)),
+                        (chunk::Value::Boolean(n), chunk::Value::Nil) => self.stack.push(chunk::Value::Boolean(0)),
+                        _ => {
+                            self.runtime_error("Type mismatch for equality operator");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
+                }
+                chunk::OpCode::OpNot => {
+                    if let chunk::Value::Boolean(n) = self.stack.pop().unwrap() {
+                        match n {
+                            0 => self.stack.push(chunk::Value::Boolean(1)),
+                            1 => self.stack.push(chunk::Value::Boolean(0)),
+                            _ => (),
+                        }
+                    } else {
+                        self.runtime_error("Operand must be a boolean");
+                        return InterpretResult::InterpretRuntimeError
+                    }
+                }
+                chunk::OpCode::OpNil => {
+                    self.stack.push(chunk::Value::Nil)
+                },
+                chunk::OpCode::OpTrue => {
+                    self.stack.push(chunk::Value::Boolean(1))
+                },
+                chunk::OpCode::OpFalse => {
+                    self.stack.push(chunk::Value::Boolean(0))
+                },         
                 chunk::OpCode::OpConstant(index) => {
-                    //println!("Constant: {}", self.curr_ch.unwrap().get_const()[index]);
-                    self.stack.push(self.curr_ch.get_const()[index]);
+                    self.stack.push(self.curr_ch.get_const()[index].clone());
                 },
                 chunk::OpCode::OpNegate => {
-                    let top = -self.stack.pop().unwrap();
-                    self.stack.push(top);
+                    if let chunk::Value::Number(n) = self.stack.pop().unwrap() {
+                        self.stack.push(chunk::Value::Number(-n))
+                    } else {
+                        self.runtime_error("Operand must be a number");
+                        return InterpretResult::InterpretRuntimeError
+                    }
                 }
-                chunk::OpCode::OpAdd =>{
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a + b);
+                chunk::OpCode::OpAdd => { 
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) => self.stack.push(chunk::Value::Number(n + m)),
+                        _ => {
+                            self.runtime_error("Operands must be a numbers");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
                 },
                 chunk::OpCode::OpSubtract =>{
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a - b);
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) => self.stack.push(chunk::Value::Number(m - n)),
+                        _ => {
+                            self.runtime_error("Operands must be a numbers");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
                 },
                 chunk::OpCode::OpDivide =>{
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a / b);
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) => self.stack.push(chunk::Value::Number(m / n)),
+                        _ => {
+                            self.runtime_error("Operands must be a numbers");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
                 },
                 chunk::OpCode::OpMultiply => {
-                    let b = self.stack.pop().unwrap();
-                    let a = self.stack.pop().unwrap();
-                    self.stack.push(a * b);
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) => self.stack.push(chunk::Value::Number(m * n)),
+                        _ => {
+                            self.runtime_error("Operands must be a numbers");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
+                },
+                chunk::OpCode::OpLess => {
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) if n > m => self.stack.push(chunk::Value::Boolean(1)),
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) if n <= m => self.stack.push(chunk::Value::Boolean(0)),
+                        _ => {
+                            self.runtime_error("Operands must be a numbers");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
+                },
+                chunk::OpCode::OpGreater => {
+                    match (self.stack.pop().unwrap(), self.stack.pop().unwrap() ) {
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) if n < m => self.stack.push(chunk::Value::Boolean(1)),
+                        (chunk::Value::Number(n), chunk::Value::Number(m)) if n >= m => self.stack.push(chunk::Value::Boolean(0)),
+                        _ => {
+                            self.runtime_error("Operands must be a numbers");
+                            return InterpretResult::InterpretRuntimeError
+                        }
+                    }
                 },
 
             }
@@ -74,11 +150,28 @@ impl<'a> VM {
         }
     }
 
+    fn runtime_error(&mut self, message: &str){
+        eprint!("{} ", message);
+        let mut instruction = self.curr_ch.get_line()[self.ip - 1];
+
+        eprint!("{} in script\n", instruction);
+        // reset stack
+        self.stack.clear();
+    }
+
     pub fn print_stack(&self) {
         println!("Print stack:");
         for i in self.stack.iter(){
-            println!("{}", i);
+            match i {
+                chunk::Value::Number(n) => println!(" {}", n),
+                chunk::Value::Boolean(n) => println!(" {}", n),
+                chunk::Value::Nil => println!(" Nil"),
+                _ => (), // potentially more fields to be added
+            }
+            
         }
     }
 
 }
+
+
